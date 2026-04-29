@@ -1,0 +1,64 @@
+WITH RankedData AS (
+    SELECT 
+        *,
+        ROW_NUMBER() OVER (PARTITION BY [theader_id] ORDER BY [tdatetime]) AS rn
+    FROM [dbo].[crview_category_sales_summary_by_tender]
+    WHERE [tdatetime] >= '2025-10-06' AND [tdatetime] < '2025-10-13'
+      AND [theader_type] NOT IN (3, 4, 5, 6, 7, 8, 9)
+      AND [location_name] = 'RTCC Food Court'
+	  AND [item_cat_name] IN ('Taco Taco','Taco Taco Kiosk Reg', 'Burger Crush', 'RTCC Chicken Tenders', 'C&G', 'Panda Express', 'Panda Express Register', 'Slice Shop') 
+	                        --IN ('Taco Taco','Taco Taco Kiosk Reg','RTCC Pop Up')  --used when looking up multiple categories
+	                       --= 'RTCC Bowls Express' --used for looking up single categories
+	  --AND [item_number] IN ('600937', '601510')  --used to find items
+	  --AND [kiosk_name] = 'RTCC Bowls Express MO'
+)
+
+SELECT
+       [theader_id]
+      ,[tdatetime]
+	  ,CAST([tdatetime] AS DATE) AS [Date]
+	  ,FORMAT([tdatetime], 'HH:mm') AS [Time]
+	  ,DATENAME(WEEKDAY, [tdatetime]) AS [Weekday]
+      ,[location_name]
+      ,[theader_type]
+	  ,CASE 
+           WHEN rn = 1 THEN 
+               CASE WHEN [theader_type] = 2 THEN -1 ELSE [theader_type] END
+           ELSE 0
+       END AS [Checks]
+	  ,CASE WHEN [theader_type] = 2 THEN -[item_price] ELSE [item_price] END AS [item_price]
+      ,[kiosk_name]
+	  ,CASE
+           WHEN CHARINDEX('MO', [kiosk_name]) > 0 THEN 'Mobile'
+		   WHEN CHARINDEX('Reg', [kiosk_name]) > 0 THEN 'Register'
+           WHEN CHARINDEX('Kiosk', [kiosk_name]) > 0 THEN 'Kiosk'
+		   WHEN CHARINDEX('Tablet', [kiosk_name]) > 0 THEN 'Tablet'
+           ELSE NULL
+       END AS [POS]
+      ,[tdetail_id]
+      ,[item_qty]
+      ,[item_number]
+      ,[item_description]
+      --,[item_price]
+      ,[item_cat_name]
+	  ,CASE 
+          WHEN CHARINDEX('C&G', [item_cat_name]) > 0 THEN 'C&G'
+	      WHEN CHARINDEX('Taco Taco', [item_cat_name]) > 0 THEN 'Taco Taco'
+		  WHEN CHARINDEX('Burger Crush', [item_cat_name]) > 0 THEN 'Burger Crush'
+		  WHEN CHARINDEX('Chicken Tenders', [item_cat_name]) > 0 THEN 'Chicken Tenders'
+		  WHEN CHARINDEX('Panda Express', [item_cat_name]) > 0 THEN 'Panda Express'
+		  WHEN CHARINDEX('Filones', [item_cat_name]) > 0 THEN 'Filones'
+		  WHEN CHARINDEX('Slice Shop', [item_cat_name]) > 0 THEN 'Slice Shop'
+		  WHEN CHARINDEX('RTCC Bowls Express', [item_cat_name]) > 0 THEN 'Bowls Express'
+		  WHEN CHARINDEX('RTCC Bowls', [item_cat_name]) > 0 THEN 'Bowls'
+		  WHEN CHARINDEX('RTCC Pop Up', [item_cat_name]) > 0 THEN 'Pop Up'
+		  WHEN CHARINDEX('DISCOUNT', [item_number]) > 0 THEN 'DISCOUNT'
+          ELSE NULL
+       END AS [Unit]
+      ,[item_sub_cat_name]
+      ,[item_split]
+      ,[item_split_percent]
+      ,[ttenders_id]
+      ,[ttenders_tid]
+      ,[ttenders_name]
+FROM RankedData;
